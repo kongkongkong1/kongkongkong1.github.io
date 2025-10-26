@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片进度生成工具（含圆环圆头）-Guts(2383379923)</title>
+    <style>
+        /* 保持原有样式不变 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+            background-color: #f0f2f5;
+        }
+
+        .tool-title {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 26px;
+            margin: 20px 0 40px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #4285f4;
+        }
+
+        .control-panel {
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .config-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .upload-btn {
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .upload-btn:hover {
+            background: #3367d6;
+        }
+
+        .split-option, #prefixName, #radiusInput, #segmentCount, #headColorInput {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        #prefixName {
+            width: 150px;
+        }
+       
+        #radiusInput, #segmentCount {
+            width: 120px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #headColorPicker {
+            width: 40px;
+            height: 40px;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        #headColorInput {
+            width: 100px;
+        }
+
+        .file-info {
+            color: #555;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        } 
+
+        .download-tip {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .ring-options {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #ddd;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .preview-area {
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .preview-title {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .progress-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            overflow: auto;
+            max-height: 600px;
+            padding: 10px;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+        }
+
+        .progress-item {
+            border: 1px solid #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .progress-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            background-color: #f9f9f9;
+        }
+
+        .progress-label {
+            padding: 8px;
+            color: #666;
+            font-size: 14px;
+            background-color: #f9f9f9;
+        }
+
+        .download-area {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        #downloadAll {
+            padding: 12px 30px;
+            background: #34a853;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #downloadAll:hover {
+            background: #2e7d32;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .config-group, .ring-options {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .split-option, #prefixName, #radiusInput, #segmentCount, #headColorInput {
+                width: 100%;
+            }
+
+            .progress-container {
+                grid-template-columns: 1fr;
+                max-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="tool-title">图片进度生成工具（含圆环圆头）-Guts(2383379923)</h1>
+
+    <!-- 控制区域 -->
+    <div class="control-panel">
+        <div class="config-group">
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">选择图片</button>
+            <input type="file" id="fileInput" accept="image/*" class="hidden">
+            
+            <select class="split-option" id="progressDirection">
+                <option value="horizontal">横向进度（从左到右）</option>
+                <option value="vertical">纵向进度（从上到下）</option>
+                <option value="radial-clockwise">径向进度（顺时针）</option>
+                <option value="radial-counter">径向进度（逆时针）</option>
+            </select>
+            
+            <input type="number" id="segmentCount" value="10" min="1" max="50"
+                   placeholder="进度份数" title="生成的进度图数量（不含0进度图）">
+            
+            <input type="text" id="prefixName" value="" 
+                   placeholder="文件名前缀" title="下载文件的前缀名称">
+            
+            <input type="number" id="radiusInput" value="0" min="0" max="100"
+                   placeholder="圆角半径" title="横向/纵向进度的圆角像素（径向进度无效）">
+            
+            <span class="file-info">未选择图片</span>
+        </div>
+
+        <!-- 新增圆环处理选项 -->
+        <div class="ring-options">
+            <div class="checkbox-group">
+                <input type="checkbox" id="isRingImage" name="isRingImage">
+                <label for="isRingImage">图片是圆环</label>
+            </div>
+            
+            <div id="ringSettings" class="hidden">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="keepRoundHead" name="keepRoundHead" checked>
+                    <label for="keepRoundHead">保持圆头</label>
+                </div>
+                
+                <div class="color-input-group">
+                    <label for="headColorPicker">圆头颜色：</label>
+                    <input type="color" id="headColorPicker" value="#ffffff">
+                    <input type="text" id="headColorInput" value="#ffffff" placeholder="颜色代码">
+
+
+
+                </div>
+            </div>
+        </div>
+
+        <div class="download-tip">
+            下载提示：0进度图为透明背景，径向进度适用于圆形/圆环图片；所有图片打包为ZIP
+        </div>
+    </div>
+
+    <!-- 预览区域 -->
+    <div class="preview-area">
+        <h3 class="preview-title">进度预览（共 <span id="previewCount">0</span> 份，含0进度图）</h3>
+        <div class="progress-container" id="progressContainer"></div>
+    </div>
+
+    <!-- 下载区域 -->
+    <div class="download-area">
+        <button id="downloadAll" class="hidden">下载所有进度图片</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script>
+        // 全局变量
+        let progressImages = [];
+        let currentImage = null;
+        let ringInfo = {
+            innerRadius: 0,
+            outerRadius: 0,
+            centerX: 0,
+            centerY: 0
+        };
+        
+        // DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const progressDirection = document.getElementById('progressDirection');
+        const segmentCount = document.getElementById('segmentCount');
+        const prefixName = document.getElementById('prefixName');
+        const radiusInput = document.getElementById('radiusInput');
+        const fileInfo = document.querySelector('.file-info');
+        const progressContainer = document.getElementById('progressContainer');
+        const previewCount = document.getElementById('previewCount');
+        const downloadAll = document.getElementById('downloadAll');
+        
+        // 新增圆环相关元素
+        const isRingImage = document.getElementById('isRingImage');
+        const ringSettings = document.getElementById('ringSettings');
+        const keepRoundHead = document.getElementById('keepRoundHead');
+        const headColorPicker = document.getElementById('headColorPicker');
+        const headColorInput = document.getElementById('headColorInput');
+
+        // 事件监听
+        fileInput.addEventListener('change', handleFileUpload);
+        progressDirection.addEventListener('change', reprocessImage);
+        segmentCount.addEventListener('change', reprocessImage);
+        prefixName.addEventListener('change', updatePreviewLabels);
+        radiusInput.addEventListener('change', reprocessImage);
+        isRingImage.addEventListener('change', toggleRingSettings);
+        headColorPicker.addEventListener('input', syncColorInputs);
+        headColorInput.addEventListener('input', syncColorPicker);
+        keepRoundHead.addEventListener('change', reprocessImage);
+
+        // 同步颜色选择器和输入框
+        function syncColorInputs() {
+            headColorInput.value = headColorPicker.value;
+            reprocessImage(); // 颜色变更时重新渲染
+        }
+
+        function syncColorPicker() {
+            if (/^#[0-9A-F]{6}$/i.test(headColorInput.value)) {
+                headColorPicker.value = headColorInput.value;
+                reprocessImage(); // 颜色变更时重新渲染
+            }
+        }
+
+        // 显示/隐藏圆环设置
+        function toggleRingSettings() {
+            if (isRingImage.checked) {
+                ringSettings.classList.remove('hidden');
+                if (currentImage) {
+                    analyzeRingImage(); // 分析圆环图片
+                    generateProgressImages();
+                }
+            } else {
+                ringSettings.classList.add('hidden');
+                if (currentImage) {
+                    generateProgressImages();
+                }
+            }
+        }
+        // 提取图片主色调（简化版：取中心区域像素的平均色）
+        function extractMainColor(img) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            // 缩小采样尺寸（降低计算量）
+            const sampleSize = 500; // 采样区域大小为50x50像素
+            canvas.width = sampleSize;
+            canvas.height = sampleSize;
+            
+            // 绘制图片中心区域到采样画布（聚焦图片核心区域，减少边缘透明像素影响）
+            const imgCenterX = img.width / 2;
+            const imgCenterY = img.height / 2;
+            ctx.drawImage(
+                img,
+                imgCenterX - sampleSize/2, // 源图起始X（中心左移半个采样区）
+                imgCenterY - sampleSize/2, // 源图起始Y（中心上移半个采样区）
+                sampleSize, sampleSize,    // 源图采样宽高
+                0, 0,                      // 目标画布起始位置
+                sampleSize, sampleSize     // 目标画布宽高
+            );
+            
+            // 获取采样区域的像素数据
+            const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+            const data = imageData.data;
+            let r = 0, g = 0, b = 0;
+            let count = 0;
+            
+            // 遍历像素（跳过完全透明的像素）
+            for (let i = 0; i < data.length; i += 4) {
+                const alpha = data[i + 3];
+                if (alpha > 10) { // 只统计不透明像素（alpha>10）
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                    count++;
+                }
+            }
+            
+            // 计算平均色（如果没有有效像素，默认红色）
+            if (count === 0) return '#ff0000';
+            r = Math.round(r / count);
+            g = Math.round(g / count);
+            b = Math.round(b / count);
+            
+            // 转换为十六进制颜色
+            return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0')}`;
+        }
+        // 分析圆环图片，确定内圆和外圆半径
+        function analyzeRingImage() {
+            if (!currentImage) return;
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = currentImage.width;
+            canvas.height = currentImage.height;
+            ctx.drawImage(currentImage, 0, 0);
+            
+            // 圆环中心（假设为图片中心）
+            ringInfo.centerX = canvas.width / 2;
+            ringInfo.centerY = canvas.height / 2;
+            
+            // 计算最大可能半径
+            const maxPossibleRadius = Math.min(canvas.width, canvas.height) / 2;
+            
+            // 寻找外圆半径（从边缘向内检测第一个非透明像素）
+            let outerRadiusFound = false;
+            for (let r = maxPossibleRadius; r > 0 && !outerRadiusFound; r--) {
+                // 检查边缘上的点
+                const points = [
+                    {x: ringInfo.centerX + r, y: ringInfo.centerY},
+                    {x: ringInfo.centerX - r, y: ringInfo.centerY},
+                    {x: ringInfo.centerX, y: ringInfo.centerY + r},
+                    {x: ringInfo.centerX, y: ringInfo.centerY - r}
+                ];
+                
+                for (const p of points) {
+                    if (p.x >= 0 && p.x < canvas.width && p.y >= 0 && p.y < canvas.height) {
+                        const pixel = ctx.getImageData(p.x, p.y, 1, 1).data;
+                        if (pixel[3] > 10) { // 存在不透明像素
+                            ringInfo.outerRadius = r;
+                            outerRadiusFound = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 寻找内圆半径（从中心向外检测第一个非透明像素）
+            let innerRadiusFound = false;
+            for (let r = 0; r < ringInfo.outerRadius && !innerRadiusFound; r++) {
+                // 检查圆周上的点
+                const points = [
+                    {x: ringInfo.centerX + r, y: ringInfo.centerY},
+                    {x: ringInfo.centerX - r, y: ringInfo.centerY},
+                    {x: ringInfo.centerX, y: ringInfo.centerY + r},
+                    {x: ringInfo.centerX, y: ringInfo.centerY - r}
+                ];
+                
+                for (const p of points) {
+                    if (p.x >= 0 && p.x < canvas.width && p.y >= 0 && p.y < canvas.height) {
+                        const pixel = ctx.getImageData(p.x, p.y, 1, 1).data;
+                        if (pixel[3] > 10) { // 存在不透明像素
+                            ringInfo.innerRadius = r;
+                            innerRadiusFound = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 如果未找到合理的内外半径，使用默认值
+            if (ringInfo.outerRadius === 0) {
+                ringInfo.outerRadius = maxPossibleRadius * 0.8;
+            }
+            if (ringInfo.innerRadius === 0) {
+                ringInfo.innerRadius = ringInfo.outerRadius * 0.6;
+            }
+        }
+
+        // 处理图片上传
+        // function handleFileUpload(e) {
+        //     const file = e.target.files[0];
+        //     if (!file) return;
+
+        //     fileInfo.textContent = `已选择：${file.name}`;
+        //     const fileName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        //     prefixName.value = fileName;
+
+        //     const reader = new FileReader();
+        //     reader.onload = function(event) {
+        //         const img = new Image();
+        //         img.onload = function() {
+        //             currentImage = img;
+        //             if (isRingImage.checked) {
+        //                 analyzeRingImage();
+        //             }
+        //             generateProgressImages();
+        //         };
+        //         img.src = event.target.result;
+        //     };
+        //     reader.readAsDataURL(file);
+        // }
+        // 处理图片上传（修改后）
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            fileInfo.textContent = `已选择：${file.name}`;
+            const fileName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            prefixName.value = fileName;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    currentImage = img;
+                    
+                    // 新增：提取主色调并设置为圆头初始颜色
+                    const mainColor = extractMainColor(img);
+                    headColorPicker.value = mainColor;
+                    headColorInput.value = mainColor;
+                    
+                    // 原逻辑：分析圆环（如果需要）并生成进度图
+                    if (isRingImage.checked) {
+                        analyzeRingImage();
+                    }
+                    generateProgressImages();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+
+        // 重新生成进度图
+        function reprocessImage() {
+            if (currentImage) {
+                if (isRingImage.checked) {
+                    analyzeRingImage();
+                }
+                generateProgressImages();
+            }
+        }
+
+        // 生成进度图（核心：修复逆时针起始点问题）
+        function generateProgressImages() {
+            const direction = progressDirection.value;
+            const radius = parseInt(radiusInput.value) || 0;
+            const totalSteps = parseInt(segmentCount.value) || 2;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // 设置canvas尺寸与原图一致
+            canvas.width = currentImage.width;
+            canvas.height = currentImage.height;
+            progressImages = [];
+
+            // 生成0进度图（透明背景）
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            progressImages.push({
+                url: canvas.toDataURL('image/png'),
+                index: 0,
+                percentage: 0
+            });
+
+            // 生成正常进度图
+            for (let index = 0; index < totalSteps; index++) {
+                const progress = (index + 1) / totalSteps;
+                const percentage = Math.round(progress * 100);
+
+                // 重置画布和上下文
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+
+                if (progress > 0) {
+                    // 径向进度（顺时针/逆时针）
+                    if (direction.startsWith('radial')) {
+                        let centerX, centerY, outerRadius, innerRadius;
+                        
+                        // 如果是圆环图片，使用分析得到的参数
+                        if (isRingImage.checked) {
+                            centerX = ringInfo.centerX;
+                            centerY = ringInfo.centerY;
+                            outerRadius = ringInfo.outerRadius;
+                            innerRadius = ringInfo.innerRadius;
+                        } else {
+                            // 普通圆形图片参数
+                            centerX = canvas.width / 2;
+                            centerY = canvas.height / 2;
+                            outerRadius = Math.min(canvas.width, canvas.height) / 2;
+                            innerRadius = 0; // 不是圆环，内半径为0
+                        }
+                        
+                        // 计算扇形角度（0-360度）
+                        const endAngle = progress * Math.PI * 2;
+                        
+                        // 关键修复：统一起始点为0度（顶部，-Math.PI/2弧度）
+                        // 顺时针从顶部向右扩展，逆时针从顶部向左扩展
+                        const startAngle = -Math.PI/2; // 0度位置（顶部）
+                        
+                        // 创建扇形路径（径向进度的可见区域）
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY); // 从圆心开始
+                        
+                        if (direction === 'radial-clockwise') {
+                            // 顺时针绘制扇形：从顶部向右（角度增加）
+                            ctx.arc(centerX, centerY, outerRadius, startAngle, startAngle + endAngle);
+                        } else {
+                            // 逆时针绘制扇形：从顶部向左（角度减少，绘制方向为逆时针）
+                            ctx.arc(centerX, centerY, outerRadius, startAngle, startAngle - endAngle, true);
+                        }
+                        
+                        // 如果是圆环，添加内圆路径
+                        if (isRingImage.checked && innerRadius > 0) {
+                            if (direction === 'radial-clockwise') {
+                                // 顺时针内圆路径（反向闭合）
+                                ctx.arc(centerX, centerY, innerRadius, startAngle + endAngle, startAngle, true);
+                            } else {
+                                // 逆时针内圆路径（反向闭合）
+                                ctx.arc(centerX, centerY, innerRadius, startAngle - endAngle, startAngle);
+                            }
+                        }
+                        // 保存当前画布状态（还未裁剪）
+                        ctx.save(); 
+
+                        ctx.closePath(); // 闭合路径
+                        ctx.clip(); // 裁剪为扇形区域
+
+                        // 在扇形区域内绘制完整图片
+                        ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+                        
+                        // 恢复画布状态（取消裁剪，后续绘制不受扇形限制）
+                        ctx.restore(); 
+
+                        // 绘制圆头（如果启用）
+                        if (isRingImage.checked && keepRoundHead.checked) {
+                            // 计算圆头直径（内外圆半径差值）
+                            const headDiameter = outerRadius - innerRadius;
+                            const headRadius = headDiameter / 2;
+                            
+                            // 计算圆头位置（在环的中间）
+                            const middleRadius = innerRadius + headRadius;
+                            
+                            // 起点圆头位置（固定在0度顶部）
+                            const startX = centerX + Math.cos(startAngle) * middleRadius;
+                            const startY = centerY + Math.sin(startAngle) * middleRadius;
+                            
+                            // 终点圆头角度和位置
+                            const endAnglePos = direction === 'radial-clockwise' 
+                                ? startAngle + endAngle 
+                                : startAngle - endAngle;
+                            const endX = centerX + Math.cos(endAnglePos) * middleRadius;
+                            const endY = centerY + Math.sin(endAnglePos) * middleRadius;
+                            
+                            // 绘制圆头
+                            ctx.save();
+                            ctx.globalCompositeOperation = 'source-over';
+                            ctx.fillStyle = headColorPicker.value;
+                            
+                            // 起点圆头
+                            ctx.beginPath();
+                            ctx.arc(startX, startY, headRadius, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 终点圆头
+                            ctx.beginPath();
+                            ctx.arc(endX, endY, headRadius, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            ctx.restore();
+                        }
+                    }
+                    // 原有横向/纵向进度逻辑
+                    else {
+                        let displayWidth = canvas.width;
+                        let displayHeight = canvas.height;
+                        if (direction === 'horizontal') {
+                            displayWidth = canvas.width * progress;
+                        } else {
+                            displayHeight = canvas.height * progress;
+                        }
+
+                        if (radius > 0) {
+                            // 绘制圆角矩形路径
+                            ctx.beginPath();
+                            const safeRadius = Math.min(radius, displayWidth / 2, displayHeight / 2);
+                            ctx.moveTo(safeRadius, 0);
+                            ctx.lineTo(displayWidth - safeRadius, 0);
+                            ctx.arcTo(displayWidth, 0, displayWidth, safeRadius, safeRadius);
+                            ctx.lineTo(displayWidth, displayHeight - safeRadius);
+                            ctx.arcTo(displayWidth, displayHeight, displayWidth - safeRadius, displayHeight, safeRadius);
+                            ctx.lineTo(safeRadius, displayHeight);
+                            ctx.arcTo(0, displayHeight, 0, displayHeight - safeRadius, safeRadius);
+                            ctx.lineTo(0, safeRadius);
+                            ctx.arcTo(0, 0, safeRadius, 0, safeRadius);
+                            ctx.closePath();
+                            ctx.clip();
+                        }
+
+                        // 绘制图片
+                        ctx.drawImage(
+                            currentImage,
+                            0, 0, displayWidth, displayHeight,
+                            0, 0, displayWidth, displayHeight
+                        );
+                    }
+                }
+
+                ctx.restore();
+                progressImages.push({
+                    url: canvas.toDataURL('image/png'),
+                    index: index + 1,
+                    percentage: percentage
+                });
+            }
+
+            renderPreviews();
+            downloadAll.classList.remove('hidden');
+        }
+
+        // 渲染预览
+        function renderPreviews() {
+            const totalSteps = parseInt(segmentCount.value) || 2;
+            const totalWithZero = totalSteps + 1;
+            const prefix = prefixName.value.trim() || 'progress';
+
+            progressContainer.innerHTML = '';
+            previewCount.textContent = totalWithZero;
+
+            progressImages.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'progress-item';
+                div.innerHTML = `
+                    <img src="${item.url}" alt="${prefix}_${item.index}">
+                    <div class="progress-label">
+                        ${prefix}_${item.index}（${item.percentage}% 进度）
+                    </div>
+                `;
+                progressContainer.appendChild(div);
+            });
+        }
+
+        // 更新预览标签
+        function updatePreviewLabels() {
+            const prefix = prefixName.value.trim() || 'progress';
+            const items = document.querySelectorAll('.progress-label');
+            items.forEach((item, index) => {
+                const percentage = progressImages[index]?.percentage || 0;
+                item.innerHTML = `${prefix}_${index}（${percentage}% 进度）`;
+            });
+        }
+
+        // 下载所有图片
+        downloadAll.addEventListener('click', async () => {
+            const prefix = prefixName.value.trim() || 'progress';
+            const zip = new JSZip();
+            const folder = zip.folder(`${prefix}_进度图`);
+
+            progressImages.forEach(item => {
+                const base64 = item.url.split(',')[1];
+                const binary = atob(base64);
+                const uint8Arr = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    uint8Arr[i] = binary.charCodeAt(i);
+                }
+                folder.file(`${prefix}_${item.index}.png`, uint8Arr);
+            });
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${prefix}_进度图_共${progressImages.length}份（含0进度）.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>
