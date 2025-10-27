@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片进度生成工具（含圆环圆头）-Guts(2383379923)</title>
+    <!-- <title>主题进度条生成工具-wn(如有问题qq2383379923)</title> -->
+
     <style>
         /* 保持原有样式不变 */
         * {
@@ -212,7 +213,7 @@
     </style>
 </head>
 <body>
-    <h1 class="tool-title">图片进度生成工具（含圆环圆头）-Guts(2383379923)</h1>
+    <h1 class="tool-title">主题进度条生成工具(圆角矩形,圆,环)-蜗牛(2383379923)</h1>
 
     <!-- 控制区域 -->
     <div class="control-panel">
@@ -221,10 +222,12 @@
             <input type="file" id="fileInput" accept="image/*" class="hidden">
             
             <select class="split-option" id="progressDirection">
-                <option value="horizontal">横向进度（从左到右）</option>
-                <option value="vertical">纵向进度（从上到下）</option>
-                <option value="radial-clockwise">径向进度（顺时针）</option>
-                <option value="radial-counter">径向进度（逆时针）</option>
+                <option value="horizontal">横向（从左到右）</option>
+                <option value="horizontal-reverse">横向（从右到左）</option> <!-- 新增 -->
+                <option value="vertical">纵向（从上到下）</option>
+                <option value="vertical-reverse">纵向（从下到上）</option> <!-- 新增 -->
+                <option value="radial-clockwise">径向（顺时针）</option>
+                <option value="radial-counter">径向（逆时针）</option>
             </select>
             
             <input type="number" id="segmentCount" value="10" min="1" max="50"
@@ -243,13 +246,13 @@
         <div class="ring-options">
             <div class="checkbox-group">
                 <input type="checkbox" id="isRingImage" name="isRingImage">
-                <label for="isRingImage">图片是圆环</label>
+                <label for="isRingImage">圆环选项</label>
             </div>
             
             <div id="ringSettings" class="hidden">
                 <div class="checkbox-group">
                     <input type="checkbox" id="keepRoundHead" name="keepRoundHead" checked>
-                    <label for="keepRoundHead">保持圆头</label>
+                    <label for="keepRoundHead">圆头</label>
                 </div>
                 
                 <div class="color-input-group">
@@ -533,7 +536,9 @@
         }
 
         // 生成进度图（核心：修复逆时针起始点问题）
+        // 生成进度图（核心：新增反向进度逻辑）
         function generateProgressImages() {
+
             const direction = progressDirection.value;
             const radius = parseInt(radiusInput.value) || 0;
             const totalSteps = parseInt(segmentCount.value) || 2;
@@ -545,8 +550,27 @@
             canvas.height = currentImage.height;
             progressImages = [];
 
-            // 生成0进度图（透明背景）
+            // 生成0进度图（透明背景+起点圆头，逻辑不变）
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (isRingImage.checked && keepRoundHead.checked) {
+                // 原有0进度图圆头逻辑...
+                const centerX = ringInfo.centerX;
+                const centerY = ringInfo.centerY;
+                const outerRadius = ringInfo.outerRadius;
+                const innerRadius = ringInfo.innerRadius;
+                const headDiameter = outerRadius - innerRadius;
+                const headRadius = headDiameter / 2;
+                const middleRadius = innerRadius + headRadius;
+                const startAngle = -Math.PI/2;
+                const startX = centerX + Math.cos(startAngle) * middleRadius;
+                const startY = centerY + Math.sin(startAngle) * middleRadius;
+                ctx.save();
+                ctx.fillStyle = headColorPicker.value;
+                ctx.beginPath();
+                ctx.arc(startX, startY, headRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
             progressImages.push({
                 url: canvas.toDataURL('image/png'),
                 index: 0,
@@ -563,135 +587,151 @@
                 ctx.save();
 
                 if (progress > 0) {
-                    // 径向进度（顺时针/逆时针）
+                    // 径向进度逻辑不变...
                     if (direction.startsWith('radial')) {
+                        // 原有径向进度代码（保持不变）
                         let centerX, centerY, outerRadius, innerRadius;
-                        
-                        // 如果是圆环图片，使用分析得到的参数
                         if (isRingImage.checked) {
                             centerX = ringInfo.centerX;
                             centerY = ringInfo.centerY;
                             outerRadius = ringInfo.outerRadius;
                             innerRadius = ringInfo.innerRadius;
                         } else {
-                            // 普通圆形图片参数
                             centerX = canvas.width / 2;
                             centerY = canvas.height / 2;
                             outerRadius = Math.min(canvas.width, canvas.height) / 2;
-                            innerRadius = 0; // 不是圆环，内半径为0
+                            innerRadius = 0;
                         }
-                        
-                        // 计算扇形角度（0-360度）
                         const endAngle = progress * Math.PI * 2;
-                        
-                        // 关键修复：统一起始点为0度（顶部，-Math.PI/2弧度）
-                        // 顺时针从顶部向右扩展，逆时针从顶部向左扩展
-                        const startAngle = -Math.PI/2; // 0度位置（顶部）
-                        
-                        // 创建扇形路径（径向进度的可见区域）
+                        const startAngle = -Math.PI/2;
                         ctx.beginPath();
-                        ctx.moveTo(centerX, centerY); // 从圆心开始
-                        
+                        ctx.moveTo(centerX, centerY);
                         if (direction === 'radial-clockwise') {
-                            // 顺时针绘制扇形：从顶部向右（角度增加）
                             ctx.arc(centerX, centerY, outerRadius, startAngle, startAngle + endAngle);
                         } else {
-                            // 逆时针绘制扇形：从顶部向左（角度减少，绘制方向为逆时针）
                             ctx.arc(centerX, centerY, outerRadius, startAngle, startAngle - endAngle, true);
                         }
-                        
-                        // 如果是圆环，添加内圆路径
                         if (isRingImage.checked && innerRadius > 0) {
                             if (direction === 'radial-clockwise') {
-                                // 顺时针内圆路径（反向闭合）
                                 ctx.arc(centerX, centerY, innerRadius, startAngle + endAngle, startAngle, true);
                             } else {
-                                // 逆时针内圆路径（反向闭合）
                                 ctx.arc(centerX, centerY, innerRadius, startAngle - endAngle, startAngle);
                             }
                         }
-                        // 保存当前画布状态（还未裁剪）
-                        ctx.save(); 
-
-                        ctx.closePath(); // 闭合路径
-                        ctx.clip(); // 裁剪为扇形区域
-
-                        // 在扇形区域内绘制完整图片
+                        ctx.save();
+                        ctx.closePath();
+                        ctx.clip();
                         ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
-                        
-                        // 恢复画布状态（取消裁剪，后续绘制不受扇形限制）
-                        ctx.restore(); 
-
-                        // 绘制圆头（如果启用）
+                        ctx.restore();
                         if (isRingImage.checked && keepRoundHead.checked) {
-                            // 计算圆头直径（内外圆半径差值）
+                            // 原有圆头绘制逻辑（保持不变）
                             const headDiameter = outerRadius - innerRadius;
                             const headRadius = headDiameter / 2;
-                            
-                            // 计算圆头位置（在环的中间）
                             const middleRadius = innerRadius + headRadius;
-                            
-                            // 起点圆头位置（固定在0度顶部）
                             const startX = centerX + Math.cos(startAngle) * middleRadius;
                             const startY = centerY + Math.sin(startAngle) * middleRadius;
-                            
-                            // 终点圆头角度和位置
                             const endAnglePos = direction === 'radial-clockwise' 
                                 ? startAngle + endAngle 
                                 : startAngle - endAngle;
                             const endX = centerX + Math.cos(endAnglePos) * middleRadius;
                             const endY = centerY + Math.sin(endAnglePos) * middleRadius;
-                            
-                            // 绘制圆头
                             ctx.save();
                             ctx.globalCompositeOperation = 'source-over';
                             ctx.fillStyle = headColorPicker.value;
-                            
-                            // 起点圆头
                             ctx.beginPath();
                             ctx.arc(startX, startY, headRadius, 0, Math.PI * 2);
                             ctx.fill();
-                            
-                            // 终点圆头
                             ctx.beginPath();
                             ctx.arc(endX, endY, headRadius, 0, Math.PI * 2);
                             ctx.fill();
-                            
                             ctx.restore();
                         }
                     }
-                    // 原有横向/纵向进度逻辑
+                    // 横向/纵向进度（新增反向逻辑）
                     else {
                         let displayWidth = canvas.width;
                         let displayHeight = canvas.height;
+                        let clipX = 0; // 裁剪区域X坐标（默认左侧）
+                        let clipY = 0; // 裁剪区域Y坐标（默认顶部）
+
+                        // 横向进度（正向/反向）
                         if (direction === 'horizontal') {
                             displayWidth = canvas.width * progress;
-                        } else {
-                            displayHeight = canvas.height * progress;
+                            clipX = 0; // 从左到右：从左侧开始裁剪
+                        } else if (direction === 'horizontal-reverse') {
+                            displayWidth = canvas.width * progress;
+                            clipX = canvas.width - displayWidth; // 从右到左：从右侧开始裁剪（X坐标右移）
                         }
 
+                        // 纵向进度（正向/反向）
+                        if (direction === 'vertical') {
+                            displayHeight = canvas.height * progress;
+                            clipY = 0; // 从上到下：从顶部开始裁剪
+                        } else if (direction === 'vertical-reverse') {
+                            displayHeight = canvas.height * progress;
+                            clipY = canvas.height - displayHeight; // 从下到上：从底部开始裁剪（Y坐标下移）
+                        }
+
+                        // 绘制圆角矩形裁剪路径（适配反向方向）
                         if (radius > 0) {
-                            // 绘制圆角矩形路径
                             ctx.beginPath();
                             const safeRadius = Math.min(radius, displayWidth / 2, displayHeight / 2);
-                            ctx.moveTo(safeRadius, 0);
-                            ctx.lineTo(displayWidth - safeRadius, 0);
-                            ctx.arcTo(displayWidth, 0, displayWidth, safeRadius, safeRadius);
-                            ctx.lineTo(displayWidth, displayHeight - safeRadius);
-                            ctx.arcTo(displayWidth, displayHeight, displayWidth - safeRadius, displayHeight, safeRadius);
-                            ctx.lineTo(safeRadius, displayHeight);
-                            ctx.arcTo(0, displayHeight, 0, displayHeight - safeRadius, safeRadius);
-                            ctx.lineTo(0, safeRadius);
-                            ctx.arcTo(0, 0, safeRadius, 0, safeRadius);
+                            
+                            // 根据方向调整圆角位置
+                            if (direction === 'horizontal') {
+                                // 从左到右：左上角和左下角圆角
+                                ctx.moveTo(clipX + safeRadius, clipY);
+                                ctx.lineTo(clipX + displayWidth - safeRadius, clipY);
+                                ctx.arcTo(clipX + displayWidth, clipY, clipX + displayWidth, clipY + safeRadius, safeRadius);
+                                ctx.lineTo(clipX + displayWidth, clipY + displayHeight - safeRadius);
+                                ctx.arcTo(clipX + displayWidth, clipY + displayHeight, clipX + displayWidth - safeRadius, clipY + displayHeight, safeRadius);
+                                ctx.lineTo(clipX + safeRadius, clipY + displayHeight);
+                                ctx.arcTo(clipX, clipY + displayHeight, clipX, clipY + displayHeight - safeRadius, safeRadius);
+                                ctx.lineTo(clipX, clipY + safeRadius);
+                                ctx.arcTo(clipX, clipY, clipX + safeRadius, clipY, safeRadius);
+                            } else if (direction === 'horizontal-reverse') {
+                                // 从右到左：右上角和右下角圆角
+                                ctx.moveTo(clipX + displayWidth - safeRadius, clipY);
+                                ctx.lineTo(clipX + safeRadius, clipY);
+                                ctx.arcTo(clipX, clipY, clipX, clipY + safeRadius, safeRadius);
+                                ctx.lineTo(clipX, clipY + displayHeight - safeRadius);
+                                ctx.arcTo(clipX, clipY + displayHeight, clipX + safeRadius, clipY + displayHeight, safeRadius);
+                                ctx.lineTo(clipX + displayWidth - safeRadius, clipY + displayHeight);
+                                ctx.arcTo(clipX + displayWidth, clipY + displayHeight, clipX + displayWidth, clipY + displayHeight - safeRadius, safeRadius);
+                                ctx.lineTo(clipX + displayWidth, clipY + safeRadius);
+                                ctx.arcTo(clipX + displayWidth, clipY, clipX + displayWidth - safeRadius, clipY, safeRadius);
+                            } else if (direction === 'vertical') {
+                                // 从上到下：左上角和右上角圆角
+                                ctx.moveTo(clipX + safeRadius, clipY);
+                                ctx.lineTo(clipX + displayWidth - safeRadius, clipY);
+                                ctx.arcTo(clipX + displayWidth, clipY, clipX + displayWidth, clipY + safeRadius, safeRadius);
+                                ctx.lineTo(clipX + displayWidth, clipY + displayHeight - safeRadius);
+                                ctx.arcTo(clipX + displayWidth, clipY + displayHeight, clipX + displayWidth - safeRadius, clipY + displayHeight, safeRadius);
+                                ctx.lineTo(clipX + safeRadius, clipY + displayHeight);
+                                ctx.arcTo(clipX, clipY + displayHeight, clipX, clipY + displayHeight - safeRadius, safeRadius);
+                                ctx.lineTo(clipX, clipY + safeRadius);
+                                ctx.arcTo(clipX, clipY, clipX + safeRadius, clipY, safeRadius);
+                            } else if (direction === 'vertical-reverse') {
+                                // 从下到上：左下角和右下角圆角
+                                ctx.moveTo(clipX + safeRadius, clipY + displayHeight);
+                                ctx.lineTo(clipX + displayWidth - safeRadius, clipY + displayHeight);
+                                ctx.arcTo(clipX + displayWidth, clipY + displayHeight, clipX + displayWidth, clipY + displayHeight - safeRadius, safeRadius);
+                                ctx.lineTo(clipX + displayWidth, clipY + safeRadius);
+                                ctx.arcTo(clipX + displayWidth, clipY, clipX + displayWidth - safeRadius, clipY, safeRadius);
+                                ctx.lineTo(clipX + safeRadius, clipY);
+                                ctx.arcTo(clipX, clipY, clipX, clipY + safeRadius, safeRadius);
+                                ctx.lineTo(clipX, clipY + displayHeight - safeRadius);
+                                ctx.arcTo(clipX, clipY + displayHeight, clipX + safeRadius, clipY + displayHeight, safeRadius);
+                            }
                             ctx.closePath();
                             ctx.clip();
                         }
 
-                        // 绘制图片
+                        // 绘制图片（根据方向调整绘制位置）
                         ctx.drawImage(
                             currentImage,
-                            0, 0, displayWidth, displayHeight,
-                            0, 0, displayWidth, displayHeight
+                            clipX, clipY, displayWidth, displayHeight, // 源图裁剪区域（与画布裁剪区域一致）
+                            clipX, clipY, displayWidth, displayHeight  // 目标画布绘制位置
                         );
                     }
                 }
@@ -707,7 +747,7 @@
             renderPreviews();
             downloadAll.classList.remove('hidden');
         }
-
+        
         // 渲染预览
         function renderPreviews() {
             const totalSteps = parseInt(segmentCount.value) || 2;
